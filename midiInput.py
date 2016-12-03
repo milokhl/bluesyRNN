@@ -13,20 +13,29 @@ def checkForDevices():
 		return False
 
 
+# [[[status,data1,data2,data3],timestamp]
+# data3: channel (0)
+# 
+
 
 def main():
 	midi.init()
 	
 	if checkForDevices() == True:
-		guitar = midi.Input(0)
+		guitar = midi.Input(0, 4)
 	else:
 		print "No MIDI output found. Make sure a virtual MIDI output exists."
 
-	while(True):
-		if guitar.poll():
-			print "Found input from guitar."
+	try:
+		while(True):
+			if guitar.poll():
+				#print "Found input from guitar."
+				event = guitar.read(3)
+				print event
 
-	guitar.close()
+	except(KeyboardInterrupt):
+		guitar.close()
+		midi.quit()
 
 
 if __name__ == '__main__':
