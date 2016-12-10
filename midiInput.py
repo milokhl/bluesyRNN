@@ -94,8 +94,7 @@ def buildMidiFileFromArray(midi_array, filename='new_song.mid', bpm=56,ticks_per
 	mid.save(filename)
 	return mid
 
-
-def main():
+def recordSoloOverForm():
 	# get midi files from backing track
 	organ_file = './Dataset/mids/final_proj_organ.mid'
 	bass_file = './Dataset/mids/final_proj_bass.mid'
@@ -149,10 +148,9 @@ def main():
 	buildMidiFileFromArray(midArr)
 
 
-# align recording with tempo
-# play the backing midi track with software instruments
-# extract relevant information from the midi backing track
-# at each timestep, collect an input vector, and an output vector (the note that is heard)
+def main():
+	recordSoloOverForm()
+	
 
 if __name__ == '__main__':
 	try:
