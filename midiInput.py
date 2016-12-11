@@ -98,8 +98,48 @@ def convertMidiSoloToTrainingArray(midi_file, num_ticks=144, num_pitches=43):
 	    			trainingArr[2*(msg.note-40)+1][currentTick] = 0 #turn held OFF
 	return trainingArr
 
-def convertMidiBackingToTrainingArray(midi_file):
-	pass
+def createBackingArray(chords_with_duration, num_measures=8, beats_per_measure=3, ticks_per_beat=6):
+	"""
+	chords_with_duration: a list of tuples (root, quality, # beats held)
+	eg. [(10,min_7,1.5), (8,maj,1.5), (1,maj_7,3), (3,min_7,1.5), (8,dom_7,1.5), (1,maj_7,3), 
+		(6,maj_7,1.5), (5,dom_7,1.5),(10,min_7,1.5), (8,dom_7,1.5), (3,min_7,1.5), (8,dom_7,1.5), (1,maj_7,3)]
+	C =0
+	C#=1
+	D =2
+	D#=3
+	E =4
+	F =5
+	F#=6
+	G =7
+	G#=8
+	A =9
+	A#=10
+	B=11
+
+	Creates a matrix representation of the chord progression
+	-the [12] rows represent chord tones
+	-each column is a tick
+	For each chord, the 12 chord tones are represented in an array
+	"""
+	# define chords intervalic structures that are used
+	chord_dict = {'min_7':[0,3,7,10], 'maj_7':[0,4,7,11], 'dom_7':[0,4,7,10], 'maj':[0,4,7]}
+
+	num_ticks = num_measures * beats_per_measure * ticks_per_beat
+	size = (12, num_ticks)
+	backingArr = np.zeros(size, dtype=np.int8)
+	print backingArr
+
+	currentTick = 0
+	for root, quality, duration in chords_with_duration:
+		if duration*ticks_per_beat != int(duration*ticks_per_beat):
+			print "Duration is not allowed: does not represent an whole number of ticks after conversion."
+			raise(TypeError)
+		for t in range(int(duration*ticks_per_beat)): # number of ticks for this chord
+			for interval in chord_dict[quality]: # fill in the current chord at the current tick
+				backingArr[(root+interval)%12][currentTick] = 1
+			currentTick+=1
+
+	return backingArr
 
 
 def buildMidiFileFromArray(midi_array, filename='new_song.mid', bpm=56,ticks_per_beat=6,sig_num=6, sig_den=8, tempo_factor=0.5, min_note=40, max_note=82):
@@ -139,22 +179,11 @@ def buildMidiFileFromArray(midi_array, filename='new_song.mid', bpm=56,ticks_per
 					last_active_tick = tick
 					track.append(event)
 
-	# turn off every note to make sure we don't leave anything playing infinitely
-	# for pitch in range(40,83):
-	# 	off_msg = Message('note_off', note=pitch, velocity=0, time=1)
-	# 	track.append(off_msg)
-
 	# save the file to memory: will overwrite!
 	mid.save(filename)
 	return mid
 
 def recordSoloOverForm():
-	# get midi files from backing track
-	organ_file = './Dataset/mids/final_proj_organ.mid'
-	bass_file = './Dataset/mids/final_proj_bass.mid'
-	music_file = 'happy_bflat_blues.ogg'
-
-
 	### DEFINE PARAMETERS ###
 	bpm = 56 # quarters per minute
 	quarters_per_measure = 3
@@ -164,6 +193,12 @@ def recordSoloOverForm():
 	ticks_per_beat = 6
 	sig_num = 6
 	sig_den = 8
+
+	# get midi files from backing track
+	organ_file = './Dataset/mids/final_proj_organ.mid'
+	bass_file = './Dataset/mids/final_proj_bass.mid'
+	music_file = 'happy_bflat_blues.ogg'
+
 	### END DEFINES ###
 
 	# create a midi file to store the recording session to
@@ -198,24 +233,25 @@ def recordSoloOverForm():
 			currentTick = min(143, int(6*float(time.time()-startTime)*1e6 / (micros_per_beat))) # do not allow tick to exceed max
 			print(currentTick, msg)
 			midArr[currentTick].append(msg)
+	new_mid = buildMidiFileFromArray(midArr)
+	return new_mid
 
-	buildMidiFileFromArray(midArr)
+
 
 
 def main():
 	#recordSoloOverForm()
-	trainingArr = convertMidiSoloToTrainingArray('new_song.mid')
-	for i in trainingArr:
+	#trainingArr = convertMidiSoloToTrainingArray('new_song.mid')
+	#for i in trainingArr:
+		#print i[0:30]
+	chord_prog = [(10,'min_7',1.5), (8,'maj',1.5), (1,'maj_7',3), (3,'min_7',1.5), \
+				(8,'dom_7',1.5), (1,'maj_7',3), (6,'maj_7',1.5), (5,'dom_7',1.5), \
+				(10,'min_7',1.5), (8,'dom_7',1.5), (3,'min_7',1.5), (8,'dom_7',1.5), (1,'maj_7',3)]
+
+	backingArr = createBackingArray(chord_prog)
+	for i in backingArr:
 		print i[0:30]
-	print ""
-	for i in trainingArr:
-		print i[30:60]
-	print ""
-	for i in trainingArr:
-		print i[60:90]
-	print ""
-	for i in trainingArr:
-		print i[90:120]
+	
 
 if __name__ == '__main__':
 	try:
@@ -224,14 +260,3 @@ if __name__ == '__main__':
 		port.close()
 		pygame.quit()
 		pygame.mixer.quit()
-
-
-
-
-
-# midi.init()
-	
-	# if checkForDevices() == True:
-	# 	guitar = midi.Input(0, 4)
-	# else:
-	# 	print "No MIDI output found. Make sure a virtual MIDI output exists."
