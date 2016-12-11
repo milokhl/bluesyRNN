@@ -5,6 +5,7 @@ import midi as m
 from mido import MidiFile, Message, MidiTrack, MetaMessage, bpm2tempo
 import mido
 import time
+import numpy as np
 
 
 def checkForDevices():
@@ -48,6 +49,59 @@ def constructMidiArray(num_measures, beats_per_measure, ticks_per_beat):
 	print("Constructed midi array with", total_ticks, "ticks.")
 	return midiArray
 
+def convertMidiSoloToTrainingArray(midi_file, num_ticks=144, num_pitches=43):
+	"""
+	Takes in a MIDI File (eg. 'my_midi.mid') of a solo, and converts to a 2D matrix, which is used for training.
+	-Each column in the matrix represents a tick (timestep)
+	-Each row in the matrix represents whether a note is articulated, held, or off at a given timestep
+	-Notevalues are in [40,82] (low E, to high Bflat on guitar)
+	-86 total rows in matrix, indexed 0,1,2,...,85
+	-Note that this function expects only Track 0 in the midifile
+	i_on = 2(notevalue-40)
+	i_held = 2(notevalue-40)+1
+	"""
+	# create the training data array
+	size = (num_pitches*2,num_ticks)
+	trainingArr = np.zeros(size, dtype=np.int8)
+
+	mid = MidiFile(midi_file)
+
+	for i, track in enumerate(mid.tracks):
+
+	    currentTick = 0
+	    for msg in track:
+	    	if not isinstance(msg, MetaMessage): # we don't want to consider meta messages
+	    		print msg
+		    	currentTick += msg.time # we skip forward by however long it was until we hit this message
+
+		    	if currentTick != 0: #we must look back by msg.time steps (ex. if msg skips ahead by 2, we need to look back 2 columns)
+		    		for step in range(-msg.time+1,1): # Note: when step=0, we are just checking the tick before currentTick
+		    			tk = currentTick + step
+
+			    		# if a note was articulated at last time step, it should be held unless instructed otherwise
+			    		for j in range(trainingArr.shape[0]): #for each row
+
+			    			if (j % 2) == 0: #an ON/OFF row
+			    				if trainingArr[j][tk-1] == 1: #if we articulated this note at the last tick
+			    					# it should be held at this tick
+			    					trainingArr[j+1][tk] = 1
+			    			else: #this is held/not held row
+			    				if trainingArr[j][tk-1] == 1: #continue to hold an note if it was already being held
+			    					trainingArr[j][tk] = 1
+
+	    		# now look at the current message and make necessary updates
+	    		if msg.type=='note_on':
+	    			trainingArr[2*(msg.note-40)][currentTick] = 1 #turn note ON at current tick
+	    			trainingArr[2*(msg.note-40)+1][currentTick] = 0 #turn held OFF
+	    		elif msg.type=='note_off':
+	    			trainingArr[2*(msg.note-40)][currentTick] = 0 #turn note OFF at current tick
+	    			trainingArr[2*(msg.note-40)+1][currentTick] = 0 #turn held OFF
+	return trainingArr
+
+def convertMidiBackingToTrainingArray(midi_file):
+	pass
+
+
 def buildMidiFileFromArray(midi_array, filename='new_song.mid', bpm=56,ticks_per_beat=6,sig_num=6, sig_den=8, tempo_factor=0.5, min_note=40, max_note=82):
 	"""
 	midi_array: an array of midi events, indexed by tick
@@ -86,9 +140,9 @@ def buildMidiFileFromArray(midi_array, filename='new_song.mid', bpm=56,ticks_per
 					track.append(event)
 
 	# turn off every note to make sure we don't leave anything playing infinitely
-	for pitch in range(40,83):
-		off_msg = Message('note_off', note=pitch, velocity=0, time=1)
-		track.append(off_msg)
+	# for pitch in range(40,83):
+	# 	off_msg = Message('note_off', note=pitch, velocity=0, time=1)
+	# 	track.append(off_msg)
 
 	# save the file to memory: will overwrite!
 	mid.save(filename)
@@ -149,8 +203,19 @@ def recordSoloOverForm():
 
 
 def main():
-	recordSoloOverForm()
-	
+	#recordSoloOverForm()
+	trainingArr = convertMidiSoloToTrainingArray('new_song.mid')
+	for i in trainingArr:
+		print i[0:30]
+	print ""
+	for i in trainingArr:
+		print i[30:60]
+	print ""
+	for i in trainingArr:
+		print i[60:90]
+	print ""
+	for i in trainingArr:
+		print i[90:120]
 
 if __name__ == '__main__':
 	try:
