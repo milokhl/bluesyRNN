@@ -1,3 +1,8 @@
+#!/usr/bin/env 
+
+# Helper functions for bluesyRNN
+# By Milo Knowles, 2016
+
 import pygame
 from pygame.mixer import music
 import pygame.mixer
@@ -18,6 +23,15 @@ def checkForDevices():
 	else:
 		return False
 
+def getBeatArray_6_8():
+	size = (3,18)
+	beatArr = np.zeros(size,dtype=np.int8)
+
+	beatArr[0][0], beatArr[0][6], beatArr[0][12] = 1,1,1
+	beatArr[1][3], beatArr[1][6], beatArr[1][15] = 1,1,1
+	beatArr[2][9], beatArr[2][12], beatArr[2][15] = 1,1,1
+
+	return beatArr
 
 def playMusic(music_file, num_repeats):
     """
@@ -119,15 +133,14 @@ def createBackingArray(chords_with_duration, num_measures=8, beats_per_measure=3
 	Creates a matrix representation of the chord progression
 	-the [12] rows represent chord tones
 	-each column is a tick
-	For each chord, the 12 chord tones are represented in an array
 	"""
-	# define chords intervalic structures that are used
+	# define chords intervalic structures that are used in a dict
 	chord_dict = {'min_7':[0,3,7,10], 'maj_7':[0,4,7,11], 'dom_7':[0,4,7,10], 'maj':[0,4,7]}
 
 	num_ticks = num_measures * beats_per_measure * ticks_per_beat
 	size = (12, num_ticks)
-	backingArr = np.zeros(size, dtype=np.int8)
-	print backingArr
+	backingArr = np.empty(size, dtype=np.int8)
+	backingArr.fill(-1)
 
 	currentTick = 0
 	for root, quality, duration in chords_with_duration:
@@ -238,19 +251,18 @@ def recordSoloOverForm():
 
 
 
-
 def main():
 	#recordSoloOverForm()
 	#trainingArr = convertMidiSoloToTrainingArray('new_song.mid')
 	#for i in trainingArr:
 		#print i[0:30]
+	
 	chord_prog = [(10,'min_7',1.5), (8,'maj',1.5), (1,'maj_7',3), (3,'min_7',1.5), \
 				(8,'dom_7',1.5), (1,'maj_7',3), (6,'maj_7',1.5), (5,'dom_7',1.5), \
 				(10,'min_7',1.5), (8,'dom_7',1.5), (3,'min_7',1.5), (8,'dom_7',1.5), (1,'maj_7',3)]
 
 	backingArr = createBackingArray(chord_prog)
-	for i in backingArr:
-		print i[0:30]
+	print backingArr
 	
 
 if __name__ == '__main__':
